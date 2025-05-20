@@ -111,7 +111,7 @@ const WishlistPage = () => {
                     )}
                   </div>
                   <button 
-                    className={`bg-black text-white px-2 sm:px-3 py-1 text-xs sm:text-sm rounded hover:bg-gray-800 transition-colors flex items-center justify-center ${
+                    className={`bg-black text-white px-2 sm:px-3 py-1 text-xs sm:text-sm rounded hover:bg-gray-800 transition-colors flex items-center justify-center cursor-pointer ${
                       isRTL ? 'flex-row-reverse' : ''
                     }`}
                   >
