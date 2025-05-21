@@ -26,8 +26,11 @@ const ProductInfo = ({
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const wishlistItems = useSelector((state) => state.wishlist.items);
-  const isWishlisted = wishlistItems.includes(variant._id);
+  const { items: wishlistItems, productsData: wishlistProducts } = useSelector((state) => state.wishlist);
+  
+  // Check if this exact variant OR any variant of this product is in wishlist
+  const isWishlisted = wishlistItems.includes(variant._id) || 
+                      wishlistProducts.some(p => p.productId === product._id);
 
   const handleAddToCart = () => {
     const token = localStorage.getItem("token");
@@ -47,27 +50,36 @@ const ProductInfo = ({
       });
   };
 
-  const handleWishlistClick = (e, variant) => {
+  const handleWishlistClick = (e) => {
     e.preventDefault();
-    // const token = localStorage.getItem("token");
-    // if (!token) {
-    //   toast.error(t("productInfo.mustLoginFirst"));
-    //   navigate("/login");
-    //   return;
-    // }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error(t("productInfo.mustLoginFirst"));
+      navigate("/login");
+      return;
+    }
 
     if (isWishlisted) {
-      dispatch(removeFromWishlist(variant._id));
+      // Find all wishlist items for this product
+      const itemsToRemove = wishlistProducts
+        .filter(p => p.productId === product._id)
+        .map(item => item._id);
+      
+      // Remove all matching items
+      itemsToRemove.forEach(id => {
+        dispatch(removeFromWishlist(id));
+      });
       toast.success(t("productInfo.removedFromWishlist"));
     } else {
       dispatch(addToWishlist({
         _id: variant._id,
         productId: product._id,
-        name: variant.name,
+        name: product.name, // Using product name instead of variant name
         price: variant.price,
         discountPrice: variant.discountPrice,
         image: variant.images?.[0] || product.images?.[0],
         color: variant.color,
+        inStock: variant.inStock,
       }));
       toast.success(t("productInfo.addedToWishlist"));
     }
@@ -108,7 +120,7 @@ const ProductInfo = ({
                 className={`px-4 py-2 border rounded-full ${
                   selectedVariant === index
                     ? "bg-black text-white border-black"
-                    : "border-gray-300"
+                    : "border-gray-300 hover:border-gray-400"
                 }`}
               >
                 {v.color?.[currentLang] ||
@@ -119,18 +131,18 @@ const ProductInfo = ({
         </div>
       )}
 
-      <div className="flex gap-4">
-        <div className="flex items-center border border-gray-300">
+      <div className="flex gap-4 mb-4">
+        <div className="flex items-center border border-gray-300 rounded">
           <button
-            className="px-3 py-2 text-lg cursor-pointer"
+            className="px-3 py-2 text-lg hover:bg-gray-100 disabled:opacity-50"
             onClick={() => handleQuantityChange(-1)}
             disabled={quantity <= 1}
           >
             -
           </button>
-          <span className="px-4 py-2">{quantity}</span>
+          <span className="px-4 py-2 border-x border-gray-300">{quantity}</span>
           <button
-            className="px-3 py-2 text-lg cursor-pointer"
+            className="px-3 py-2 text-lg hover:bg-gray-100 disabled:opacity-50"
             onClick={() => handleQuantityChange(1)}
             disabled={quantity >= maxQuantity}
           >
@@ -138,7 +150,7 @@ const ProductInfo = ({
           </button>
         </div>
         <button
-          className="bg-black w-40 text-white py-3 px-6 cursor-pointer transition-colors"
+          className="bg-black hover:bg-gray-800 w-40 text-white py-3 px-6 rounded transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           onClick={handleAddToCart}
           disabled={variant.inStock <= 0}
         >
@@ -148,66 +160,72 @@ const ProductInfo = ({
         </button>
       </div>
 
-      <div className="mt-4">
+      <div className="mb-8">
         <button
-          className={`p-2 flex items-center gap-2 rounded-full transition-colors ${
+          onClick={handleWishlistClick}
+          className={`flex items-center gap-2 p-2 rounded-full transition-colors ${
             isWishlisted
-              ? "text-red-500"
-              : "cursor-pointer"
+              ? "text-red-500 hover:text-red-600"
+              : "text-gray-700 hover:text-black"
           }`}
-          onClick={(e) => handleWishlistClick(e, variant)}
         >
           <FiHeart 
             size={20} 
             fill={isWishlisted ? "currentColor" : "none"} 
             stroke="currentColor"
+            strokeWidth={isWishlisted ? 1.5 : 2}
+            className="transition-all duration-200"
           />
-          {isWishlisted ? t("productInfo.wishlisted") : t("productInfo.addToWishlist")}
+          <span className="text-sm font-medium">
+            {isWishlisted ? t("productInfo.wishlisted") : t("productInfo.addToWishlist")}
+          </span>
         </button>
-      </div>
 
-      <div className="mb-8">
-        <div className="mb-4 flex gap-2">
-          <h3 className="font-semibold">{t("productInfo.color")}:</h3>
-          <p className="text-gray-500">
-            {variant.color?.[currentLang] || t("productInfo.noColor")}
-          </p>
-        </div>
+        <div className="mt-6 space-y-3">
+          <div className="flex gap-2">
+            <h3 className="font-semibold">{t("productInfo.color")}:</h3>
+            <p className="text-gray-500">
+              {variant.color?.[currentLang] || t("productInfo.noColor")}
+            </p>
+          </div>
 
-        <div className="mb-4 flex gap-2">
-          <h3 className="font-semibold">{t("productInfo.material")}:</h3>
-          <p className="text-gray-500">
-            {product.material?.[currentLang] || t("productInfo.noMaterial")}
-          </p>
-        </div>
+          <div className="flex gap-2">
+            <h3 className="font-semibold">{t("productInfo.material")}:</h3>
+            <p className="text-gray-500">
+              {product.material?.[currentLang] || t("productInfo.noMaterial")}
+            </p>
+          </div>
 
-        {product.categories?.sub?.tags &&
-          product.categories.sub.tags.length > 0 && (
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">Tags: </h3>
-              <div className="flex flex-wrap gap-2">
-                {product.categories.sub.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="bg-gray-100 hover:underline cursor-pointer transition-all duration-300 text-gray-800 text-sm px-3 py-1 capitalize font-medium rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
+          {product.categories?.sub?.tags &&
+            product.categories.sub.tags.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2">Tags: </h3>
+                <div className="flex flex-wrap gap-2">
+                  {product.categories.sub.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm px-3 py-1 capitalize font-medium rounded-full transition-colors"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-        <div className="mb-4 flex gap-2">
-          <h3 className="font-semibold">Availability: </h3>
-          <p className="text-gray-500">
-            {variant.inStock > 0
-              ? `In Stock (${variant.inStock} available)`
-              : t("productInfo.outOfStock")}
-          </p>
+          <div className="flex gap-2">
+            <h3 className="font-semibold">Availability: </h3>
+            <p className={`${
+              variant.inStock > 0 ? "text-green-600" : "text-red-600"
+            }`}>
+              {variant.inStock > 0
+                ? `${variant.inStock}`
+                : t("Out of stock")}
+            </p>
+          </div>
         </div>
 
-        <div>
+        <div className="mt-6">
           <ProductTabs product={product} />
         </div>
       </div>

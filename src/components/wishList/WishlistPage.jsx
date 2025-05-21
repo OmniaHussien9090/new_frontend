@@ -13,6 +13,15 @@ const WishlistPage = () => {
   const dispatch = useDispatch();
   const { productsData } = useSelector((state) => state.wishlist);
 
+  // Get unique products (no duplicates)
+  const uniqueProducts = productsData.reduce((acc, product) => {
+    const exists = acc.some(p => p.productId === product.productId);
+    if (!exists) {
+      acc.push(product);
+    }
+    return acc;
+  }, []);
+
   const handleRemoveItem = (productId) => {
     dispatch(removeFromWishlist(productId));
   };
@@ -44,7 +53,7 @@ const WishlistPage = () => {
         
         <h1 className="text-xl sm:text-2xl font-bold order-1 sm:order-2">{t("My Wishlist")}</h1>
         
-        {productsData.length > 0 && (
+        {uniqueProducts.length > 0 && (
           <button
             onClick={handleClearWishlist}
             className="text-red-500 hover:text-red-700 text-sm font-medium order-3"
@@ -55,9 +64,9 @@ const WishlistPage = () => {
       </div>
 
       {/* Products Grid */}
-      {productsData.length > 0 ? (
+      {uniqueProducts.length > 0 ? (
         <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {productsData.map((product) => (
+          {uniqueProducts.map((product) => (
             <div
               key={product._id}
               className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
